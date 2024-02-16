@@ -1,0 +1,87 @@
+FROM rockylinux:9
+
+RUN dnf -y update
+RUN dnf -y install file 
+RUN dnf -y install gcc 
+RUN dnf -y install m4
+RUN dnf -y install time
+RUN dnf -y install emacs
+RUN dnf -y install make
+RUN dnf -y install git
+
+RUN dnf -y install gcc-gfortran libgfortran
+RUN dnf -y install zlib zlib-devel
+RUN dnf -y install libpng-devel
+RUN dnf -y install perl bash tcsh csh
+RUN dnf -y install openmpi
+RUN dnf -y install openmpi-devel
+RUN dnf -y install jasper jasper-libs
+RUN dnf -y install epel-release
+RUN dnf -y install netcdf
+RUN dnf -y install netcdf-fortran
+RUN dnf -y install netcdf-openmpi-devel
+RUN dnf -y install netcdf-fortran-openmpi-devel
+RUN dnf -y install netcdf-fortran-openmpi
+RUN dnf -y install hdf5-openmpi
+
+RUN mkdir /wrf
+RUN groupadd wrf -g 9999
+RUN useradd -u 9999 -g wrf -M -d /wrf wrfuser
+RUN chown -R wrfuser:wrf /wrf && chmod 6755 /wrf
+
+RUN mkdir /wrf/local \
+ && chown -R wrfuser:wrf /wrf /wrf/local /usr/local \
+ && chmod 6755 /wrf /wrf/local /usr/local
+
+COPY README.md /wrf/README.md
+
+#
+# Finished root tasks
+#
+USER wrfuser
+WORKDIR /wrf
+
+# Download NCL scripts
+RUN mkdir -p /wrf/ncl_scripts
+RUN curl -SLk http://www2.mmm.ucar.edu/wrf/TUTORIAL_DATA/NCL_scripts.tar.gz | tar -xzC /wrf/ncl_scripts
+
+# Download NCL
+RUN curl -SLk https://www.earthsystemgrid.org/api/v1/dataset/ncl.630.0/file/ncl_ncarg-6.3.0.Linux_CentOS7.0_x86_64_gcc482.tar.gz | tar zxC /usr/local
+ENV NCARG_ROOT /usr/local
+
+# Download WRF and WPS
+RUN git clone https://github.com/wrf-model/WRF.git
+RUN git clone https://github.com/wrf-model/WPS.git
+RUN mv /wrf/WRF /wrf/wrf && mv /wrf/WPS /wrf/wps
+RUN cd /wrf/wrf && git submodule init && git submodule update
+
+ENV NETCDF_classic 1
+
+RUN mkdir netcdf_links \
+ && ln -sf /usr/include/openmpi-aarch64/ netcdf_links/include \
+ && ln -sf /usr/lib64/ netcdf_links/lib
+
+# Set environment for interactive container shells
+RUN echo export 'PS1="\e[0;92m\u\e[0;95m \$PWD \e[m"' > /wrf/.bashrc \
+ && echo export PATH=.:$PATH >> /wrf/.bashrc \
+ && echo 'alias l="ls -l"' >> /wrf/.bashrc \
+ && echo 'alias em="emacs -nw"' >> /wrf/.bashrc \
+ && echo 'alias cls="clear"' >> /wrf/.bashrc \
+ && echo 'alias nobak="rm -rf *~"' >> /wrf/.bashrc \
+ && echo export 'LD_LIBRARY_PATH="/usr/lib64/openmpi/lib"' >> /wrf/.bashrc \
+ && echo export 'PATH=".:/usr/lib64/openmpi/bin:$PATH"' >> /wrf/.bashrc \
+ && echo export 'LDFLAGS="-lm"' >> /wrf/.bashrc \
+ && echo export "PKG_CONFIG_PATH=/usr/lib64/openmpi/lib/pkgconfig" >> /wrf/.bashrc \
+ && echo export 'NETCDF=/wrf/netcdf_links' >> /wrf/.bashrc \
+ && echo export 'JASPERINC=/wrf/wps/external/jasper-1.900.29/src/libjasper/include/jasper/' >> /wrf/.bashrc \
+ && echo export 'JASPERLIB=/usr/lib64/' >> /wrf/.bashrc \
+ && echo export "J='-j 4'" >> /wrf/.bashrc
+
+RUN umask 0002 && cd /wrf/wrf \
+ && echo "./configure <<< $'1\r1\r'" >> ./build_real \
+ && echo "sed -i -e '/^DM_CC/ s/$/ -DMPI2_SUPPORT/' ./configure.wrf" >> ./build_real \
+ && echo "sed -i '/BUILD_RRTMG_FAST/d' ./configure.wrf" >> ./build_real \
+ && echo "/bin/csh ./compile em_real > compile.log 2>&1" >> ./build_real \
+ && chmod +x ./build_real
+ 
+CMD ["/bin/bash"]

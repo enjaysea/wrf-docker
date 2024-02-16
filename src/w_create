@@ -1,0 +1,2 @@
+docker run -id --name wrf -v /home/rocky/wrf/data:/wrf/output wrf
+

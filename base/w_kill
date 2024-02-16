@@ -1,0 +1,4 @@
+docker stop wrf_base
+docker rm wrf_base
+docker image rm wrf_base
+

@@ -1,0 +1,3 @@
+docker run -id --name wrf_base wrf_base
+
+

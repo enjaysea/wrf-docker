@@ -1,0 +1,3 @@
+docker stop wrf
+docker rm wrf
+docker image rm wrf
