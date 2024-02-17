@@ -59,5 +59,27 @@ RUN curl -L https://github.com/wrf-model/WRF/releases/download/v4.5.2/v4.5.2.tar
  && tar xvzf wrf.tar.gz \
  && mv WRFV4.5.2 wrf \
  && rm wrf.tar.gz
+
+# Compile WRF
+WORKDIR /wrf/wrf
+
+ENV BASE /usr
+ENV NETCDF $BASE
+ENV LIB $BASE/lib64
+ENV CPPFLAGS -I$BASE/INCLUDE
+ENV CFLAGS -I$BASE/include
+ENV FFLAGS -I$BASE/include
+ENV LDFLAGS "-L$LIB -lhdf5_hl -lhdf5 -lm -lz"
+ENV LD_LIBRARY_PATH $LIB:LD_LIBRARY_PATH
+ENV PATH .:$BASE/bin:$LIB/openmpi/bin:$PATH
+
+RUN configure <<< $'15\r1\r' && compile em_real
+
+# Download WPS
+RUN curl -L https://github.com/wrf-model/WPS/archive/refs/tags/v4.5.tar.gz -o wps.tar.gz \
+ && tar xvzf wps.tar.gz \
+ && mv WPS-4.5 wps \
+ && rm wps.tar.gz
  
 CMD ["/bin/bash"]
+
