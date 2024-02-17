@@ -1,6 +1,6 @@
 FROM rockylinux:9
 
-RUN mkdir -p /wrf/wrf
+RUN mkdir /wrf
 RUN groupadd wrf -g 9999
 RUN useradd -u 9999 -g wrf -M -d /wrf wrfuser
 RUN chown -R wrfuser:wrf /wrf && chmod 6755 /wrf
@@ -16,29 +16,38 @@ RUN dnf -y install make
 RUN dnf -y install git
 RUN dnf -y install tar
 RUN dnf -y install gcc 
-RUN dnf -y install gcc-gfortran
+RUN dnf -y install gfortran gcc-gfortran libgfortran
+RUN dnf -y install zlib zlib-devel
+RUN dnf -y install libpng-devel
+RUN dnf -y install perl bash tcsh csh
+RUN dnf -y install openmpi
+RUN dnf -y install openmpi-devel
+RUN dnf -y install jasper jasper-libs
+RUN dnf -y install epel-release
+RUN dnf -y install hdf5 hdf5-devel 
+RUN dnf -y install hdf5-openmpi hdf5-openmpi-devel
+RUN dnf -y install netcdf netcdf-devel
+RUN dnf -y install netcdf-fortran netcdf-fortran-devel
 
-ENV BUILD_DIR /wrf/wrf
-ENV HDFDIR $BUILD_DIR/opt
-ENV HDF5 $BUILD_DIR/opt
-ENV NETCDF $BUILD_DIR/opt
+# Set shell environments
+RUN echo export 'PS1="\e[0;92m\u\e[0;95m \$PWD \e[m"' > /wrf/.bashrc \
+ && echo 'alias l="ls -l"' >> /wrf/.bashrc \
+ && echo 'alias em="emacs -nw"' >> /wrf/.bashrc \
+ && echo 'alias cls="clear"' >> /wrf/.bashrc \
+ && echo 'alias nobak="rm -rf *~"' >> /wrf/.bashrc \
+ && echo 'export BASE=/usr' >> /wrf/.bashrc \
+ && echo 'export NETCDF=$BASE' >> /wrf/.bashrc \
+ && echo 'export LIB=$BASE/lib64' >> /wrf/.bashrc \
+ && echo 'export CPPFLAGS=-I$BASE/INCLUDE' >> /wrf/.bashrc \ 
+ && echo 'export CFLAGS=-I$BASE/include' >> /wrf/.bashrc \ 
+ && echo 'export FFLAGS=-I$BASE/include' >> /wrf/.bashrc \
+ && echo 'export LDFLAGS="-L$LIB -lhdf5_hl -lhdf5 -lm -lz"' >> /wrf/.bashrc \
+ && echo 'export LD_LIBRARY_PATH=$LIB:LD_LIBRARY_PATH' >> /wrf/.bashrc \
+ && echo 'export PATH=.:$BASE/bin:$LIB/openmpi/bin:$PATH' >> /wrf/.bashrc 
 
-# Download and extract HDF5 source code
-RUN curl -SLk https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.14/hdf5-1.14.0/src/hdf5-1.14.0.tar.gz -o hdf5-1.14.0.tar.gz \
-&& tar xvzf hdf5-1.14.0.tar.gz \
-&& cd hdf5-1.14.0 
-#&& ./configure --prefix=$HDFDIR --enable-fortran --enable-parallel \
-#&& make -j \
-#&& make install
+RUN cp /wrf/.bashrc /root && chown root:root /root/.bashrc
 
-# Download and extract HDF5 source code
-#RUN curl -L https://github.com/Unidata/netcdf-c/archive/refs/tags/v4.9.0.tar.gz | tar xvzf -
-#WORKDIR netcdf-c-4.9.0
-#RUN ./configure --prefix=$NETCDF
-#RUN make -j && make install
-#WORKDIR $BUILD_DIR
-
-#
+# 
 # Finished root tasks
 #
 
@@ -46,22 +55,9 @@ USER wrfuser
 WORKDIR /wrf
 
 # Download WRF
-#RUN curl -L https://github.com/wrf-model/WRF/releases/download/v4.5.2/v4.5.2.tar.gz | tar xvzf -
-#RUN mv /wrf/WRFV4.5.2 /wrf/wrf
-
-# Set shell environment
-RUN echo export 'PS1="\e[0;92m\u\e[0;95m \$PWD \e[m"' > /wrf/.bashrc \
- && echo export PATH=.:$PATH >> /wrf/.bashrc \
- && echo 'alias l="ls -l"' >> /wrf/.bashrc \
- && echo 'alias em="emacs -nw"' >> /wrf/.bashrc \
- && echo 'alias cls="clear"' >> /wrf/.bashrc \
- && echo 'alias nobak="rm -rf *~"' >> /wrf/.bashrc \
- && echo export 'LD_LIBRARY_PATH="/usr/lib64/openmpi/lib"' >> /wrf/.bashrc \
- && echo export 'PATH=".:/usr/lib64/openmpi/bin:$PATH"' >> /wrf/.bashrc \
- && echo export 'LDFLAGS="-lm"' >> /wrf/.bashrc \
- && echo export "PKG_CONFIG_PATH=/usr/lib64/openmpi/lib/pkgconfig" >> /wrf/.bashrc \
- && echo export 'NETCDF=/wrf/netcdf_links' >> /wrf/.bashrc \
- && echo export 'JASPERINC=/wrf/wps/external/jasper-1.900.29/src/libjasper/include/jasper/' >> /wrf/.bashrc \
- && echo export 'JASPERLIB=/usr/lib64/' >> /wrf/.bashrc 
+RUN curl -L https://github.com/wrf-model/WRF/releases/download/v4.5.2/v4.5.2.tar.gz -o wrf.tar.gz \
+ && tar xvzf wrf.tar.gz \
+ && mv WRFV4.5.2 wrf \
+ && rm wrf.tar.gz
  
 CMD ["/bin/bash"]
